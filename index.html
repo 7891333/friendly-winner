@@ -1,0 +1,158 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+<meta charset="UTF-8">
+<title>粉丝排行榜</title>
+<meta name="viewport" content="width=device-width,initial-scale=1,user-scalable=no">
+<style>
+:root{
+  --bg:#f1f2f3;
+  --card:#ffffff99;
+  --blur:20px;
+  --shadow:0 8px 32px rgba(0,0,0,.08);
+  --red:#ff3b30;
+  --text:#000;
+  --sub:#8e8e93;
+}
+*{
+  box-sizing:border-box;
+  margin:0;
+  padding:0;
+  -webkit-tap-highlight-color:transparent;
+}
+body{
+  font-family:-apple-system,BlinkMacSystemFont,"Helvetica Neue",Helvetica,"PingFang SC","Hiragino Sans GB",sans-serif;
+  background:var(--bg);
+  color:var(--text);
+  padding:20px 15px;
+  min-height:100vh;
+}
+h1{
+  font-size:28px;
+  font-weight:600;
+  text-align:center;
+  margin-bottom:25px;
+  letter-spacing:.5px;
+}
+.refresh{
+  display:block;
+  margin:0 auto 20px;
+  border:none;
+  background:var(--card);
+  backdrop-filter:blur(var(--blur));
+  -webkit-backdrop-filter:blur(var(--blur));
+  box-shadow:var(--shadow);
+  border-radius:12px;
+  padding:10px 20px;
+  font-size:16px;
+  font-weight:500;
+  color:var(--text);
+}
+.list{
+  max-width:400px;
+  margin:0 auto;
+}
+.item{
+  display:flex;
+  align-items:center;
+  background:var(--card);
+  backdrop-filter:blur(var(--blur));
+  -webkit-backdrop-filter:blur(var(--blur));
+  box-shadow:var(--shadow);
+  border-radius:16px;
+  padding:16px 20px;
+  margin-bottom:12px;
+  opacity:0;
+  transform:translateY(20px);
+  animation:fadeIn .5s forwards;
+}
+.item:nth-child(1){animation-delay:.05s}
+.item:nth-child(2){animation-delay:.10s}
+.item:nth-child(3){animation-delay:.15s}
+.item:nth-child(4){animation-delay:.20s}
+.item:nth-child(5){animation-delay:.25s}
+@keyframes fadeIn{
+  to{opacity:1;transform:translateY(0)}
+}
+.rank{
+  font-size:22px;font-weight:700;width:36px;text-align:left;color:var(--sub);
+}
+.info{flex:1;margin-left:12px}
+.name{font-size:17px;font-weight:500}
+.num{font-size:13px;color:var(--sub);margin-top:2px}
+.num span+span{margin-left:10px}
+.error{
+  text-align:center;
+  padding:40px 20px;
+  color:var(--red);
+  font-size:15px;
+}
+</style>
+</head>
+<body>
+<h1>粉丝排行榜</h1>
+<button class="refresh" onclick="loadData()">🔄 刷新</button>
+<div id="list" class="list"></div>
+
+<script>
+/* 远端文本地址 */
+const API = 'https://qght.xyz/fileecho.php?user=7891333&file=' +
+            encodeURIComponent('云端.txt');
+
+function log(...args){ console.log(...args); }
+
+function parseRank(text){
+  // 清洗 HTML 标签 & 合并换行
+  let txt   = text.replace(/<[^>]+>/g, '\n');
+  txt       = txt.replace(/\n+/g, '\n').trim();
+  const lines = txt.split('\n').filter(l => l.trim());
+
+  const data = [];
+  lines.forEach((l, idx) => {
+    const parts = l.split(',').map(p => p.trim());
+    if (parts.length !== 3) {
+      log(`[格式错误] 第${idx+1}行字段数=${parts.length} 内容=${l}`);
+      return;
+    }
+    const [name, fans, follow] = parts;
+    const f = parseInt(fans, 10);
+    const w = parseInt(follow, 10);
+    if (isNaN(f) || isNaN(w)) {
+      log(`[数字转换错误] 第${idx+1}行 内容=${l}`);
+      return;
+    }
+    data.push({name, fans: f, follow: w});
+  });
+  return data.sort((a, b) => b.fans - a.fans);
+}
+
+async function loadData(){
+  const listBox = document.getElementById('list');
+  listBox.innerHTML = '<div class=error>加载中…</div>';
+  try {
+    const res  = await fetch(API);
+    if (!res.ok) throw new Error('网络错误 ' + res.status);
+    const text = await res.text();
+    const arr  = parseRank(text);
+    if (!arr.length) throw new Error('暂无数据');
+    listBox.innerHTML = arr.map((u, i) => `
+      <div class=item>
+        <div class=rank>${i+1}</div>
+        <div class=info>
+          <div class=name>${u.name}</div>
+          <div class=num>
+            <span>粉丝 ${u.fans}</span>
+            <span>关注 ${u.follow}</span>
+          </div>
+        </div>
+      </div>`).join('');
+  } catch (e) {
+    listBox.innerHTML = `<div class=error>❌ ${e.message}<br><small>点上方按钮重试</small></div>`;
+  }
+}
+
+/* 首次自动加载 */
+loadData();
+</script>
+</body>
+</html>
